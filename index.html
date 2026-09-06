@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DJI Live Command Center</title>
+<style>
+:root{--bg:#070a0f;--panel:#111721;--line:#26303c;--text:#eef3f8;--muted:#8d9aaa;--red:#e3262e;--green:#00c875;--yellow:#f0b429}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,sans-serif;overflow:hidden}
+header{height:64px;background:#0d1219;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.brand{display:flex;gap:12px;align-items:center}.logo{width:38px;height:38px;border-radius:8px;background:var(--red);display:grid;place-items:center;font-size:21px}.title{font-size:18px;font-weight:700}.sub{font-size:11px;color:var(--muted);margin-top:3px}
+.top{display:flex;gap:16px;align-items:center}.pill{padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:#0a0f15;font-size:12px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e44;margin-right:6px}.dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+main{height:calc(100vh - 64px);display:grid;grid-template-columns:minmax(0,1fr) 330px}
+.video{position:relative;background:#000;display:flex;align-items:center;justify-content:center}.video video{width:100%;height:100%;object-fit:contain;background:#000}
+.overlay{position:absolute;top:14px;left:14px;display:flex;gap:8px}.badge{background:#000c;padding:7px 9px;border-radius:5px;font-size:11px}.live{background:#b8141b}
+.bottom{position:absolute;left:14px;right:14px;bottom:14px;display:flex;justify-content:space-between;align-items:end;gap:10px}.info{background:#000c;padding:9px 11px;border-radius:5px;font-size:11px}.controls{display:flex;gap:7px;flex-wrap:wrap;justify-content:end}
+button{border:1px solid var(--line);background:#151c25;color:#fff;border-radius:5px;padding:9px 11px;cursor:pointer}button:hover{background:#202a35}.danger{background:#8f141a}.active{background:#c51d25}
+aside{background:var(--panel);border-left:1px solid var(--line);padding:14px;overflow:auto}.card{background:#151c25;border:1px solid var(--line);border-radius:7px;margin-bottom:12px;overflow:hidden}.ct{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:700;font-size:12px}.cb{padding:11px}.row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #222b35;font-size:11px}.row:last-child{border:0}.muted{color:var(--muted)}.ok{color:var(--green)}.bad{color:#ff5c63}.warn{color:var(--yellow)}
+input{width:100%;background:#0b1016;border:1px solid var(--line);color:#fff;border-radius:4px;padding:8px;margin:4px 0 8px}
+textarea{width:100%;height:70px;background:#0b1016;color:#fff;border:1px solid var(--line);border-radius:4px;padding:8px;resize:vertical}
+.small{font-size:10px;color:var(--muted);line-height:1.4}.url{font-family:monospace;word-break:break-all;background:#0b1016;padding:8px;border-radius:4px;font-size:10px}
+#log{height:100px;overflow:auto;font:10px monospace;color:#aeb9c5;background:#0b1016;padding:8px;border-radius:4px;white-space:pre-wrap}
+@media(max-width:900px){main{grid-template-columns:1fr}aside{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">🚁</div>
+    <div><div class="title">DJI LIVE COMMAND CENTER</div><div class="sub">PUSAT KAWALAN OPERASI PENYELAMATAN</div></div>
+  </div>
+  <div class="top"><div class="pill"><span id="dot" class="dot"></span><span id="conn">OFFLINE</span></div><div id="clock" class="pill">--:--:--</div></div>
+</header>
+
+<main>
+<section class="video">
+  <video id="video" autoplay muted playsinline></video>
+  <div class="overlay">
+    <div class="badge live">● LIVE</div><div class="badge">DJI / RTMP</div><div class="badge" id="res">--</div>
+  </div>
+  <div class="bottom">
+    <div class="info">SERVER <b>192.168.0.71</b> &nbsp;|&nbsp; STREAM <b>dji</b> &nbsp;|&nbsp; <span id="latency">WebRTC</span></div>
+    <div class="controls">
+      <button onclick="connectWebRTC()">▶ CONNECT</button>
+      <button onclick="disconnect()">■ STOP</button>
+      <button id="recBtn" class="danger" onclick="toggleRecord()">● REC</button>
+      <button onclick="snapshot()">📷 SNAPSHOT</button>
+      <button onclick="fullScreen()">⛶ FULLSCREEN</button>
+    </div>
+  </div>
+</section>
+
+<aside>
+  <div class="card"><div class="ct">STREAM STATUS</div><div class="cb">
+    <div class="row"><span class="muted">RTMP ingest</span><b id="rtmp" class="bad">WAITING</b></div>
+    <div class="row"><span class="muted">WebRTC viewer</span><b id="webrtc" class="bad">OFFLINE</b></div>
+    <div class="row"><span class="muted">Resolution</span><b id="res2">--</b></div>
+    <div class="row"><span class="muted">Video FPS</span><b id="fps">--</b></div>
+    <div class="row"><span class="muted">Recorded</span><b id="recState">NO</b></div>
+  </div></div>
+
+  <div class="card"><div class="ct">SERVER</div><div class="cb">
+    <div class="row"><span class="muted">PC Control</span><b>192.168.0.71</b></div>
+    <div class="row"><span class="muted">RTMP</span><b>:1935</b></div>
+    <div class="row"><span class="muted">HLS</span><b>:8888</b></div>
+    <div class="row"><span class="muted">WebRTC/WHEP</span><b>:8889</b></div>
+    <div class="row"><span class="muted">WebRTC UDP</span><b>:8189</b></div>
+  </div></div>
+
+  <div class="card"><div class="ct">DJI RTMP URL</div><div class="cb">
+    <div class="url">rtmp://192.168.0.71:1935/dji</div>
+    <p class="small">Masukkan URL ini pada tetapan RTMP/Live Streaming DJI yang serasi. Pastikan controller dan PC berada pada rangkaian yang sama.</p>
+  </div></div>
+
+  <div class="card"><div class="ct">OPERASI / CATATAN</div><div class="cb">
+    <label class="small">Nama operasi</label><input id="op" placeholder="Contoh: SAR Banjir Kamunting">
+    <label class="small">Catatan</label><textarea id="notes" placeholder="Catatan operator..."></textarea>
+    <button onclick="saveNotes()">Simpan catatan</button>
+  </div></div>
+
+  <div class="card"><div class="ct">SYSTEM LOG</div><div class="cb"><div id="log"></div></div></div>
+
+  <div class="small">Sistem ini memaparkan video RTMP melalui MediaMTX. GPS/telemetri DJI tidak boleh dianggap tersedia daripada video RTMP sahaja; ia perlu sumber telemetry berasingan.</div>
+</aside>
+</main>
+
+<script>
+const SERVER="192.168.0.71";
+const WHEP=`http://${SERVER}:8889/dji/whep`;
+const video=document.getElementById("video");
+let pc=null, recorder=null, chunks=[], recTimer=null, recStart=0;
+
+function log(s){const x=document.getElementById("log");x.textContent+=`[${new Date().toLocaleTimeString()}] ${s}\n`;x.scrollTop=x.scrollHeight}
+function clock(){document.getElementById("clock").textContent=new Date().toLocaleTimeString("ms-MY",{hour12:false})}
+setInterval(clock,1000);clock();
+
+function setOnline(on){
+  document.getElementById("dot").classList.toggle("on",on);
+  document.getElementById("conn").textContent=on?"ONLINE":"OFFLINE";
+  document.getElementById("conn").className=on?"ok":"bad";
+  document.getElementById("webrtc").textContent=on?"CONNECTED":"OFFLINE";
+  document.getElementById("webrtc").className=on?"ok":"bad";
+  document.getElementById("rtmp").textContent=on?"RECEIVING":"WAITING";
+  document.getElementById("rtmp").className=on?"ok":"bad";
+}
+
+async function waitIce(peer){
+  if(peer.iceGatheringState==="complete") return;
+  await new Promise(resolve=>{
+    const f=()=>{if(peer.iceGatheringState==="complete"){peer.removeEventListener("icegatheringstatechange",f);resolve()}};
+    peer.addEventListener("icegatheringstatechange",f);
+  });
+}
+
+async function connectWebRTC(){
+  disconnect();
+  log("Menyambung ke MediaMTX WHEP...");
+  pc=new RTCPeerConnection();
+  pc.addTransceiver("video",{direction:"recvonly"});
+  pc.addTransceiver("audio",{direction:"recvonly"});
+  pc.ontrack=e=>{
+    if(e.streams[0]){
+      video.srcObject=e.streams[0];
+      video.play().catch(()=>{});
+      setOnline(true); log("Video track diterima.");
+      updateInfo();
+    }
+  };
+  pc.onconnectionstatechange=()=>{
+    log("WebRTC: "+pc.connectionState);
+    if(pc.connectionState==="connected")setOnline(true);
+    if(["failed","disconnected","closed"].includes(pc.connectionState))setOnline(false);
+  };
+  try{
+    const offer=await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitIce(pc);
+    const r=await fetch(WHEP,{method:"POST",headers:{"Content-Type":"application/sdp"},body:pc.localDescription.sdp});
+    if(!r.ok) throw new Error("WHEP HTTP "+r.status);
+    const answer=await r.text();
+    await pc.setRemoteDescription({type:"answer",sdp:answer});
+    log("WHEP connected.");
+  }catch(e){setOnline(false);log("ERROR: "+e.message);alert("Gagal sambung WebRTC. Pastikan MediaMTX aktif dan DJI sedang menghantar RTMP.");}
+}
+
+function disconnect(){
+  if(pc){pc.close();pc=null}
+  video.srcObject=null;setOnline(false);log("Viewer dihentikan.");
+}
+
+function fullScreen(){if(video.requestFullscreen)video.requestFullscreen()}
+
+function snapshot(){
+  if(!video.videoWidth){alert("Tiada video aktif.");return}
+  const c=document.createElement("canvas");c.width=video.videoWidth;c.height=video.videoHeight;
+  c.getContext("2d").drawImage(video,0,0,c.width,c.height);
+  const a=document.createElement("a");a.href=c.toDataURL("image/jpeg",0.92);a.download="DJI_SNAPSHOT_"+Date.now()+".jpg";a.click();log("Snapshot disimpan.");
+}
+
+function toggleRecord(){
+  if(recorder && recorder.state==="recording"){recorder.stop();return}
+  if(!video.srcObject){alert("Sambungkan LIVE dahulu.");return}
+  const types=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+  const mime=types.find(x=>MediaRecorder.isTypeSupported(x));
+  if(!mime){alert("Browser ini tidak menyokong rakaman WebM.");return}
+  chunks=[];recorder=new MediaRecorder(video.srcObject,{mimeType:mime});
+  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  recorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:mime}),a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download="DJI_LIVE_"+new Date().toISOString().replace(/[:.]/g,"-")+".webm";a.click();
+    document.getElementById("recBtn").textContent="● REC";document.getElementById("recBtn").classList.remove("active");
+    document.getElementById("recState").textContent="NO";clearInterval(recTimer);log("Rakaman disimpan.");
+  };
+  recorder.start(1000);recStart=Date.now();
+  document.getElementById("recBtn").textContent="■ STOP REC";document.getElementById("recBtn").classList.add("active");
+  document.getElementById("recState").textContent="RECORDING";recTimer=setInterval(()=>{},1000);log("Rakaman dimulakan.");
+}
+
+function updateInfo(){
+  setInterval(()=>{
+    if(video.videoWidth){
+      const r=video.videoWidth+" × "+video.videoHeight;
+      document.getElementById("res").textContent=r;document.getElementById("res2").textContent=r;
+    }
+    const tracks=video.srcObject?.getVideoTracks?.()||[];
+    const s=tracks[0]?.getSettings?.();
+    if(s?.frameRate)document.getElementById("fps").textContent=Math.round(s.frameRate);
+  },1000);
+}
+
+function saveNotes(){
+  localStorage.setItem("dji_op",document.getElementById("op").value);
+  localStorage.setItem("dji_notes",document.getElementById("notes").value);
+  log("Catatan operasi disimpan dalam PC/browser.");
+}
+document.getElementById("op").value=localStorage.getItem("dji_op")||"";
+document.getElementById("notes").value=localStorage.getItem("dji_notes")||"";
+</script>
+</body>
+</html>
